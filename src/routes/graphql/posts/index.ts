@@ -25,16 +25,26 @@ const createPostTypeDto = new GraphQLInputObjectType({
   }),
 });
 
+const updatePostTypeDto = new GraphQLInputObjectType({
+  name: 'updatePostInputTypeDto',
+  fields: () => ({
+    id: { type: GraphQLID },
+    title: { type: new GraphQLNonNull(GraphQLString) },
+    content: { type: new GraphQLNonNull(GraphQLString) },
+    userId: { type: new GraphQLNonNull(GraphQLID) },
+  }),
+});
+
 const postsQuery = {
   type: new GraphQLList(postType),
   resolve: async (parent: any, args: any, context: any, info: any) => {
-    return await context.fastify.db.posts.findMany();
+    return await context.fastify.db.post.findMany();
   },
 };
 
 const postQuery = {
   type: postType,
-  args: { id: { type: GraphQLString } },
+  args: { id: { type: GraphQLID } },
   resolve: async (parent: any, args: any, context: any, info: any) => {
     const post = await context.fastify.db.post.findOne({
       where: {
@@ -57,17 +67,50 @@ const postCreate = {
     },
   },
   resolve: async (parent: any, args: any, context: any, info: any) => {
-    const post = await context.fastify.db.users.findOne({
+    return context.fastify.db.post.create(args.data);
+  },
+};
+
+const postUpdate = {
+  type: postType,
+  args: {
+    data: {
+      type: updatePostTypeDto,
+    },
+  },
+  resolve: async (parent: any, args: any, context: any, info: any) => {
+    const id = args.data.id;
+
+    const post = await context.fastify.db.post.findOne({
       key: 'id',
-      equals: args.data.userId,
+      equals: id,
     });
 
     if (!post) {
       throw context.fastify.httpErrors.notFound();
     }
 
-    return context.fastify.db.posts.create(args.data);
+    return context.fastify.db.post.update(id, args.data);
   },
 };
 
-export { postCreate, postQuery, postsQuery };
+const postDelete = {
+  type: postType,
+  args: { id: { type: GraphQLID } },
+  resolve: async (parent: any, args: any, context: any, info: any) => {
+    const id = args.id;
+
+    const post = await context.fastify.db.posts.findOne({
+      key: 'id',
+      equals: id,
+    });
+
+    if (!post) {
+      throw context.fastify.httpErrors.notFound();
+    }
+
+    return context.fastify.db.post.delete(id);
+  },
+};
+
+export { postCreate, postDelete, postQuery, postUpdate, postsQuery };

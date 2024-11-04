@@ -1,7 +1,29 @@
 import { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { GraphQLObjectType, GraphQLSchema, graphql } from 'graphql';
-import { postCreate, postQuery, postsQuery } from './post/index.js';
+import { memberTypeQuery, memberTypesQuery } from './memberTypes/index.js';
+import {
+  postCreate,
+  postDelete,
+  postQuery,
+  postUpdate,
+  postsQuery,
+} from './posts/index.js';
+import {
+  profileCreate,
+  profileDelete,
+  profileQuery,
+  profileUpdate,
+  profilesQuery,
+} from './profiles/index.js';
 import { createGqlResponseSchema, gqlResponseSchema } from './schemas.js';
+import {
+  userCreate,
+  userDelete,
+  userQuery,
+  userUpdate,
+  usersQuery,
+} from './users/index.js';
+import { userPostsQuery } from './users/posts.js';
 
 const schema = new GraphQLSchema({
   query: new GraphQLObjectType({
@@ -9,12 +31,27 @@ const schema = new GraphQLSchema({
     fields: () => ({
       posts: postsQuery,
       post: postQuery,
+      users: usersQuery,
+      user: userQuery,
+      profile: profileQuery,
+      profiles: profilesQuery,
+      memberType: memberTypeQuery,
+      memberTypes: memberTypesQuery,
+      userPosts: userPostsQuery
     }),
   }),
   mutation: new GraphQLObjectType({
     name: 'mutation',
     fields: () => ({
       createPost: postCreate,
+      updatePost: postUpdate,
+      deletePost: postDelete,
+      createUser: userCreate,
+      updateUser: userUpdate,
+      deleteUser: userDelete,
+      createProfile: profileCreate,
+      updateProfile: profileUpdate,
+      deleteProfile: profileDelete,
     }),
   }),
 });
