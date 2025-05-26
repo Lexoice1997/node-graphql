@@ -8,6 +8,7 @@ import {
 } from 'graphql';
 
 import { gqlContext } from '../types/types.js';
+import { UUIDType } from '../types/uuid.js';
 
 interface PostModel {
   id?: string;
@@ -17,11 +18,12 @@ interface PostModel {
 }
 
 const postType = new GraphQLObjectType({
-  name: 'post',
+  name: 'Post',
   fields: () => ({
-    id: { type: GraphQLID },
-    title: { type: GraphQLString },
-    content: { type: GraphQLString },
+    id: { type: new GraphQLNonNull(GraphQLID) },
+    title: { type: new GraphQLNonNull(GraphQLString) },
+    content: { type: new GraphQLNonNull(GraphQLString) },
+    authorId: { type: new GraphQLNonNull(GraphQLString) },
   }),
 });
 
@@ -30,7 +32,7 @@ const createPostTypeDto = new GraphQLInputObjectType({
   fields: () => ({
     title: { type: new GraphQLNonNull(GraphQLString) },
     content: { type: new GraphQLNonNull(GraphQLString) },
-    userId: { type: new GraphQLNonNull(GraphQLID) },
+    userId: { type: new GraphQLNonNull(UUIDType) },
   }),
 });
 
@@ -77,7 +79,10 @@ const postCreate = {
     },
   },
   resolve: async (_, args: { data: PostModel }, context: gqlContext) => {
-    return context.prisma.post.create({ data: args.data });
+    const { data } = args;
+    return context.prisma.post.create({
+      data: { content: data?.content, title: data?.title, authorId: data?.authorId },
+    });
   },
 };
 

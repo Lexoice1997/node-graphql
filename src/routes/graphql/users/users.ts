@@ -3,13 +3,16 @@ import {
   GraphQLInputObjectType,
   GraphQLInt,
   GraphQLList,
+  GraphQLNonNull,
   GraphQLObjectType,
   GraphQLString,
 } from 'graphql';
+
 import { gqlContext } from '../types/types.js';
+import { UUIDType } from '../types/uuid.js';
 
 const userType = new GraphQLObjectType({
-  name: 'user',
+  name: 'User',
   fields: () => ({
     id: { type: GraphQLID },
     name: { type: GraphQLString },
@@ -28,7 +31,6 @@ const createUserTypeDto = new GraphQLInputObjectType({
 const updateUserTypeDto = new GraphQLInputObjectType({
   name: 'updateUserInputTypeDto',
   fields: () => ({
-    id: { type: GraphQLID },
     name: { type: GraphQLString },
     balance: { type: GraphQLInt },
   }),
@@ -63,7 +65,7 @@ const userCreate = {
   type: userType,
   args: {
     data: {
-      type: createUserTypeDto,
+      type: new GraphQLNonNull(createUserTypeDto),
     },
   },
   resolve: async (
@@ -78,46 +80,31 @@ const userCreate = {
 const userUpdate = {
   type: userType,
   args: {
+    id: { type: new GraphQLNonNull(UUIDType) },
     data: {
-      type: updateUserTypeDto,
+      type: new GraphQLNonNull(updateUserTypeDto),
     },
   },
   resolve: async (
     _,
-    args: { data: { id: string; name: string; balance: number } },
+    args: { id: string; data: { name: string; balance: number } },
     context: gqlContext,
   ) => {
-    const id = args.data.id;
+    const { id, data } = args;
 
-    const user = await context.prisma.user.findUnique({
-      where: { id },
-    });
-
-    if (user === null) {
-      throw context.httpErrors.notFound();
-    }
-
-    return context.prisma.user.update({ where: { id }, data: args.data });
+    return context.prisma.user.update({ where: { id }, data });
   },
 };
 
 const userDelete = {
   type: userType,
-  args: { id: { type: GraphQLID } },
+  args: { id: { type: new GraphQLNonNull(UUIDType) } },
   resolve: async (_, args: { id: string }, context: gqlContext) => {
-    const id = args.id;
+    const { id } = args;
 
-    const user = await context.prisma.user.findUnique({
-      where: {
-        id,
-      },
-    });
+    await context.prisma.user.delete({ where: { id } });
 
-    if (user === null) {
-      throw context.httpErrors.notFound();
-    }
-
-    return context.prisma.user.delete({ where: { id } });
+    return true;
   },
 };
 
