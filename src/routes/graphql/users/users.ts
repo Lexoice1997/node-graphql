@@ -6,6 +6,7 @@ import {
   GraphQLObjectType,
   GraphQLString,
 } from 'graphql';
+import { gqlContext } from '../types/types.js';
 
 const userType = new GraphQLObjectType({
   name: 'user',
@@ -35,24 +36,23 @@ const updateUserTypeDto = new GraphQLInputObjectType({
 
 const usersQuery = {
   type: new GraphQLList(userType),
-  resolve: async (parent: any, args: any, context: any, info: any) => {
-    return await context.fastify.db.user.findMany();
+  resolve: async (_, __, context: gqlContext) => {
+    return await context.prisma.user.findMany();
   },
 };
 
 const userQuery = {
   type: userType,
   args: { id: { type: GraphQLID } },
-  resolve: async (parent: any, args: any, context: any, info: any) => {
-    const user = await context.fastify.db.user.findOne({
+  resolve: async (_, args: { id: string }, context: gqlContext) => {
+    const user = await context.prisma.user.findUnique({
       where: {
-        key: 'id',
-        equals: args.id,
+        id: args.id,
       },
     });
 
     if (user === null) {
-      throw context.fastify.httpErrors.notFound();
+      throw context.httpErrors.notFound();
     }
 
     return user;
@@ -66,8 +66,12 @@ const userCreate = {
       type: createUserTypeDto,
     },
   },
-  resolve: async (parent: any, args: any, context: any, info: any) => {
-    return context.fastify.db.user.create(args.data);
+  resolve: async (
+    _,
+    args: { data: { name: string; balance: number } },
+    context: gqlContext,
+  ) => {
+    return context.prisma.user.create({ data: args.data });
   },
 };
 
@@ -78,39 +82,43 @@ const userUpdate = {
       type: updateUserTypeDto,
     },
   },
-  resolve: async (parent: any, args: any, context: any, info: any) => {
+  resolve: async (
+    _,
+    args: { data: { id: string; name: string; balance: number } },
+    context: gqlContext,
+  ) => {
     const id = args.data.id;
 
-    const user = await context.fastify.db.user.findOne({
-      key: 'id',
-      equals: id,
+    const user = await context.prisma.user.findUnique({
+      where: { id },
     });
 
     if (user === null) {
-      throw context.fastify.httpErrors.notFound();
+      throw context.httpErrors.notFound();
     }
 
-    return context.fastify.db.user.update(id, args.data);
+    return context.prisma.user.update({ where: { id }, data: args.data });
   },
 };
 
 const userDelete = {
   type: userType,
   args: { id: { type: GraphQLID } },
-  resolve: async (parent: any, args: any, context: any, info: any) => {
-    const id = args.data.id;
+  resolve: async (_, args: { id: string }, context: gqlContext) => {
+    const id = args.id;
 
-    const user = await context.fastify.db.user.findOne({
-      key: 'id',
-      equals: id,
+    const user = await context.prisma.user.findUnique({
+      where: {
+        id,
+      },
     });
 
     if (user === null) {
-      throw context.fastify.httpErrors.notFound();
+      throw context.httpErrors.notFound();
     }
 
-    return context.fastify.db.user.delete(id);
+    return context.prisma.user.delete({ where: { id } });
   },
 };
 
-export { userCreate, userDelete, userQuery, userUpdate, usersQuery };
+export { userCreate, userDelete, userQuery, usersQuery, userUpdate };

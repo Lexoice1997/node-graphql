@@ -1,5 +1,7 @@
 import { GraphQLID, GraphQLList, GraphQLObjectType, GraphQLString } from 'graphql';
 
+import { gqlContext } from '../types/types.js';
+
 const userPostsType = new GraphQLObjectType({
   name: 'userPosts',
   fields: () => ({
@@ -13,16 +15,15 @@ const userPostsType = new GraphQLObjectType({
 const userPostsQuery = {
   type: new GraphQLList(userPostsType),
   args: { id: { type: GraphQLID } },
-  resolve: async (parent: any, args: any, context: any, info: any) => {
-    const userPosts = await context.fastify.db.post.findOne({
+  resolve: async (_, args: { id: string }, context: gqlContext) => {
+    const userPosts = await context.prisma.post.findUnique({
       where: {
-        key: 'authorId',
-        equals: args.id,
+        id: args.id,
       },
     });
 
     if (userPosts === null) {
-      throw context.fastify.httpErrors.notFound();
+      throw context.httpErrors.notFound();
     }
 
     return userPosts;

@@ -7,6 +7,15 @@ import {
   GraphQLString,
 } from 'graphql';
 
+import { gqlContext } from '../types/types.js';
+
+interface PostModel {
+  id?: string;
+  title: string;
+  content: string;
+  authorId: string;
+}
+
 const postType = new GraphQLObjectType({
   name: 'post',
   fields: () => ({
@@ -37,24 +46,25 @@ const updatePostTypeDto = new GraphQLInputObjectType({
 
 const postsQuery = {
   type: new GraphQLList(postType),
-  resolve: async (parent: any, args: any, context: any, info: any) => {
-    return await context.fastify.db.post.findMany();
+  resolve: async (_, __, context: gqlContext) => {
+    return await context.prisma.post.findMany();
   },
 };
 
 const postQuery = {
   type: postType,
   args: { id: { type: GraphQLID } },
-  resolve: async (parent: any, args: any, context: any, info: any) => {
-    const post = await context.fastify.db.post.findOne({
+  resolve: async (_, { id }: { id: string }, context: gqlContext) => {
+    const post = await context.prisma.post.findUnique({
       where: {
-        key: 'id',
-        equals: args.id,
+        id,
       },
     });
+
     if (post === null) {
-      throw context.fastify.httpErrors.notFound();
+      throw context.httpErrors.notFound();
     }
+
     return post;
   },
 };
@@ -66,8 +76,8 @@ const postCreate = {
       type: createPostTypeDto,
     },
   },
-  resolve: async (parent: any, args: any, context: any, info: any) => {
-    return context.fastify.db.post.create(args.data);
+  resolve: async (_, args: { data: PostModel }, context: gqlContext) => {
+    return context.prisma.post.create({ data: args.data });
   },
 };
 
@@ -78,39 +88,37 @@ const postUpdate = {
       type: updatePostTypeDto,
     },
   },
-  resolve: async (parent: any, args: any, context: any, info: any) => {
+  resolve: async (_, args: { data: PostModel }, context: gqlContext) => {
     const id = args.data.id;
 
-    const post = await context.fastify.db.post.findOne({
-      key: 'id',
-      equals: id,
+    const post = await context.prisma.post.findUnique({
+      where: { id },
     });
 
     if (!post) {
-      throw context.fastify.httpErrors.notFound();
+      throw context.httpErrors.notFound();
     }
 
-    return context.fastify.db.post.update(id, args.data);
+    return context.prisma.post.update({ where: { id: id }, data: args.data });
   },
 };
 
 const postDelete = {
   type: postType,
   args: { id: { type: GraphQLID } },
-  resolve: async (parent: any, args: any, context: any, info: any) => {
+  resolve: async (_, args: { id: string }, context: gqlContext) => {
     const id = args.id;
 
-    const post = await context.fastify.db.posts.findOne({
-      key: 'id',
-      equals: id,
+    const post = await context.prisma.post.findUnique({
+      where: { id },
     });
 
     if (!post) {
-      throw context.fastify.httpErrors.notFound();
+      throw context.httpErrors.notFound();
     }
 
-    return context.fastify.db.post.delete(id);
+    return context.prisma.post.delete({ where: { id: id } });
   },
 };
 
-export { postCreate, postDelete, postQuery, postUpdate, postsQuery };
+export { postCreate, postDelete, postQuery, postsQuery, postUpdate };

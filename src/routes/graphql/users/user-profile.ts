@@ -1,4 +1,5 @@
-import { GraphQLBoolean, GraphQLID, GraphQLInt, GraphQLObjectType, GraphQLString } from 'graphql';
+import { GraphQLBoolean, GraphQLID, GraphQLInt, GraphQLObjectType } from 'graphql';
+import { gqlContext } from '../types/types.js';
 
 const userProfileType = new GraphQLObjectType({
   name: 'usersPost',
@@ -14,16 +15,15 @@ const userProfileType = new GraphQLObjectType({
 const userProfileQuery = {
   type: userProfileType,
   args: { id: { type: GraphQLID } },
-  resolve: async (parent: any, args: any, context: any, info: any) => {
-    const profile = await context.fastify.db.profile.findOne({
+  resolve: async (_, args: { id: string }, context: gqlContext) => {
+    const profile = await context.prisma.profile.findUnique({
       where: {
-        key: 'userId',
-        equals: args.id,
+        id: args.id,
       },
     });
 
     if (profile === null) {
-      throw context.fastify.httpErrors.notFound();
+      throw context.httpErrors.notFound();
     }
 
     return profile;

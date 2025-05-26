@@ -1,29 +1,31 @@
 import { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
-import { GraphQLObjectType, GraphQLSchema, graphql } from 'graphql';
-import { memberTypeQuery, memberTypesQuery } from './memberTypes/index.js';
+import { GraphQLObjectType, GraphQLSchema, graphql, parse, validate } from 'graphql';
+import depthLimit from 'graphql-depth-limit';
+
+import { memberTypeQuery, memberTypesQuery } from './member-types/member-types.js';
 import {
   postCreate,
   postDelete,
   postQuery,
   postUpdate,
   postsQuery,
-} from './posts/index.js';
+} from './posts/posts.js';
 import {
   profileCreate,
   profileDelete,
   profileQuery,
   profileUpdate,
   profilesQuery,
-} from './profiles/index.js';
+} from './profiles/profiles.js';
 import { createGqlResponseSchema, gqlResponseSchema } from './schemas.js';
+import { userPostsQuery } from './users/user-posts.js';
 import {
   userCreate,
   userDelete,
   userQuery,
   userUpdate,
   usersQuery,
-} from './users/index.js';
-import { userPostsQuery } from './users/posts.js';
+} from './users/users.js';
 
 const schema = new GraphQLSchema({
   query: new GraphQLObjectType({
@@ -37,11 +39,11 @@ const schema = new GraphQLSchema({
       profiles: profilesQuery,
       memberType: memberTypeQuery,
       memberTypes: memberTypesQuery,
-      userPosts: userPostsQuery
+      userPosts: userPostsQuery,
     }),
   }),
   mutation: new GraphQLObjectType({
-    name: 'mutation',
+    name: 'Mutation',
     fields: () => ({
       createPost: postCreate,
       updatePost: postUpdate,
@@ -57,7 +59,7 @@ const schema = new GraphQLSchema({
 });
 
 const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
-  const { prisma } = fastify;
+  const { prisma, httpErrors } = fastify;
 
   fastify.route({
     url: '/',
@@ -71,11 +73,14 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
     async handler(req) {
       const { query, variables } = req.body;
 
-      return graphql({
+      const errors = validate(schema, parse(query), [depthLimit(5)]);
+      if (errors.length > 0) return { errors };
+
+      return await graphql({
         schema,
-        source: String(query),
+        source: query,
         variableValues: variables,
-        contextValue: { fastify, dataloaders: new WeakMap() },
+        contextValue: { prisma, httpErrors },
       });
     },
   });

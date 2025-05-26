@@ -7,6 +7,15 @@ import {
   GraphQLObjectType,
 } from 'graphql';
 
+import { gqlContext } from '../types/types.js';
+
+interface ProfileModel {
+  isMale: boolean;
+  yearOfBirth: number;
+  userId: string;
+  memberTypeId: string;
+}
+
 const profileType = new GraphQLObjectType({
   name: 'profile',
   fields: () => ({
@@ -39,24 +48,25 @@ const updateProfileTypeDto = new GraphQLInputObjectType({
 
 const profilesQuery = {
   type: new GraphQLList(profileType),
-  resolve: async (parent: any, args: any, context: any, info: any) => {
-    return await context.fastify.db.profile.findMany();
+  resolve: async (_, __, context: gqlContext) => {
+    return await context.prisma.profile.findMany();
   },
 };
 
 const profileQuery = {
   type: profileType,
   args: { id: { type: GraphQLID } },
-  resolve: async (parent: any, args: any, context: any, info: any) => {
-    const profile = await context.fastify.db.profile.findOne({
+  resolve: async (_, args: { id: string }, context: gqlContext) => {
+    const { id } = args;
+
+    const profile = await context.prisma.profile.findUnique({
       where: {
-        key: 'id',
-        equals: args.id,
+        id,
       },
     });
 
     if (profile === null) {
-      throw context.fastify.httpErrors.notFound();
+      throw context.httpErrors.notFound();
     }
 
     return profile;
@@ -70,8 +80,14 @@ const profileCreate = {
       type: createProfileTypeDto,
     },
   },
-  resolve: async (parent: any, args: any, context: any, info: any) => {
-    return context.fastify.db.user.create(args.data);
+  resolve: async (
+    _,
+    args: {
+      data: ProfileModel;
+    },
+    context: gqlContext,
+  ) => {
+    return context.prisma.profile.create({ data: args.data });
   },
 };
 
@@ -83,18 +99,25 @@ const profileUpdate = {
       type: updateProfileTypeDto,
     },
   },
-  resolve: async (parent: any, args: any, context: any, info: any) => {
-    const { id, data } = args,
-      profileToUpdate = await context.fastify.db.profiles.findOne({
-        key: 'id',
-        equals: id,
-      });
+  resolve: async (
+    _,
+    args: {
+      id: string;
+      data: ProfileModel;
+    },
+    context: gqlContext,
+  ) => {
+    const { id, data } = args;
+
+    const profileToUpdate = await context.prisma.profile.findUnique({
+      where: { id },
+    });
 
     if (!profileToUpdate) {
-      throw context.fastify.httpErrors.notFound();
+      throw context.httpErrors.notFound();
     }
 
-    return context.fastify.db.profiles.change(id, data);
+    return context.prisma.profile.update({ where: { id }, data: data });
   },
 };
 
@@ -103,9 +126,11 @@ const profileDelete = {
   args: {
     id: { type: GraphQLID },
   },
-  resolve: async (parent: any, args: any, context: any, info: any) => {
-    return context.fastify.db.profiles.delete(args.id);
+  resolve: async (_, args: { id: string }, context: gqlContext) => {
+    const id = args.id;
+
+    return context.prisma.profile.delete({ where: { id } });
   },
 };
 
-export { profileCreate, profileDelete, profileQuery, profileUpdate, profilesQuery };
+export { profileCreate, profileDelete, profileQuery, profilesQuery, profileUpdate };
